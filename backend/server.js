@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
   origin: [
     'http://localhost:3000',  // for local dev
-    'https://flower-website-frontend.onrender.com' //
+    'https://admin-panel-b3lg.onrender.com/flowers' //
   ],
   credentials: true
 }));
