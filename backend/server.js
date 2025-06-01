@@ -12,11 +12,14 @@ const PORT = process.env.PORT || 5000;
 // Cors allow GET request from multiple environments
 
 
-
 app.use(cors({
-  origin: ['http://localhost:3000'],
+  origin: [
+    'http://localhost:3000',  // for local dev
+    'https://flower-website-frontend.onrender.com' //
+  ],
   credentials: true
 }));
+
 
 
 
