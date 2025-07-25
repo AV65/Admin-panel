@@ -15,14 +15,18 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-//Get all flowers
+// Get all flowers with optional category filtering
 const getFlowers = async (req, res) => {
     try {
-        const flowers = await Flower.find({}).sort({ createdAt: -1 });
+        const category = req.query.category;
+        const filter = category ? { Category: new RegExp(`^${category}$`, 'i') } : {}; // case-insensitive
+
+        const flowers = await Flower.find(filter).sort({ createdAt: -1 });
         res.status(200).json(flowers);
     } catch (error) {
         res.status(404).json({ error: 'Server error' });
     }
+    
 };
 
 //Get a single flower by ID
@@ -39,21 +43,29 @@ const getFlower = async (req, res) => {
     }
 };
 
-//Create a new flower with image upload
+//Create a new flower with image upload to cloudinary
+const cloudinary = require('../util/Cloudinary');
+
 const createFlower = async (req, res) => {
-    console.log("Request body:", req.body);
-    console.log("Uploaded file:", req.file);
+  const { Title, Description, Price, Category } = req.body;
 
-    const { Title, Description, Price, Category } = req.body;
-    const Image = req.file ? `/uploads/${req.file.filename}` : null;
+  try {
+    const result = await cloudinary.uploader.upload(req.file.path); // upload local file to Cloudinary
 
-    try {
-        const flower = await Flower.create({ Title, Description, Price, Image, Category });
-        res.status(201).json(flower);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
+    const flower = await Flower.create({
+      Title,
+      Description,
+      Price,
+      Category,
+      Image: result.secure_url, // save Cloudinary-hosted image URL
+    });
+
+    res.status(201).json(flower);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 };
+
 
 const deleteFlower = async (req, res) => {
     const { id } = req.params;

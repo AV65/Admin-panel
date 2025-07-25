@@ -3,23 +3,16 @@ const flowersRouter = require('./routes/flowers');
 const userRouter = require('./routes/users')
 const mongoose = require('mongoose');
 const path = require('path');
-const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Cors allow GET request from multiple environments
+const cors = require('cors');
 
+// cors permission to GET request from multiple environments
 
-app.use(cors({
-  origin: [
-    'http://localhost:3000',  // for local dev
-    'https://admin-panel-b3lg.onrender.com/flowers' //
-  ],
-  credentials: true
-}));
-
+app.use(cors());
 
 
 
@@ -42,7 +35,6 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
-app.use(cors());
 app.use('/api/flowers', flowersRouter);
 app.use('/api/users', userRouter)
 
