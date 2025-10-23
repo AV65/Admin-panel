@@ -30,7 +30,7 @@ const AddFlower = () => {
 
     try {
       setUploading(true);
-      const res = await axios.post("http://localhost:5000/api/flowers", formData, {
+      const res = await axios.post("https://flower-website-backend-two.onrender.com/api/flowers", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       alert("✅ Flower added successfully!");
