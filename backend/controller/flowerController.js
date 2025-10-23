@@ -2,161 +2,143 @@ const Flower = require('../model/flowerModel');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cloudinary = require('../util/Cloudinary');
 
-//Configure Multer for file uploads
+// ===================== MULTER CONFIG =====================
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // temporary local storage
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
 });
 
 const upload = multer({ storage });
 
-// Get all flowers with optional category filtering
+// ===================== GET ALL FLOWERS =====================
 const getFlowers = async (req, res) => {
-    try {
-        const category = req.query.category;
-        const filter = category ? { Category: new RegExp(`^${category}$`, 'i') } : {}; // case-insensitive
-
-        const flowers = await Flower.find(filter).sort({ createdAt: -1 });
-        res.status(200).json(flowers);
-    } catch (error) {
-        res.status(404).json({ error: 'Server error' });
-    }
-    
+  try {
+    const category = req.query.category;
+    const filter = category ? { Category: new RegExp(`^${category}$`, 'i') } : {};
+    const flowers = await Flower.find(filter).sort({ createdAt: -1 });
+    res.status(200).json(flowers);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
 };
 
-//Get a single flower by ID
+// ===================== GET SINGLE FLOWER =====================
 const getFlower = async (req, res) => {
-    const { id } = req.params;
-    try {
-        const flower = await Flower.findById(id);
-        if (!flower) {
-            return res.status(404).json({ error: 'No such flower' });
-        }
-        res.status(200).json(flower);
-    } catch (error) {
-        res.status(500).json({ error: 'Server error' });
-    }
+  const { id } = req.params;
+  try {
+    const flower = await Flower.findById(id);
+    if (!flower) return res.status(404).json({ error: 'No such flower' });
+    res.status(200).json(flower);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
 };
 
-//Create a new flower with image upload to cloudinary
-const cloudinary = require('../util/Cloudinary');
-
+// ===================== CREATE NEW FLOWER (UPLOAD TO CLOUDINARY) =====================
 const createFlower = async (req, res) => {
   const { Title, Description, Price, Category } = req.body;
 
   try {
-    const result = await cloudinary.uploader.upload(req.file.path); // upload local file to Cloudinary
+    if (!req.file) {
+      return res.status(400).json({ error: 'Image file is required' });
+    }
 
+    // Upload the file to Cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'flowers',
+    });
+
+    // Delete the temporary local file
+    fs.unlinkSync(req.file.path);
+
+    // Create new flower document
     const flower = await Flower.create({
       Title,
       Description,
       Price,
       Category,
-      Image: result.secure_url, // save Cloudinary-hosted image URL
+      Image: result.secure_url, // Cloudinary image URL
     });
 
     res.status(201).json(flower);
   } catch (error) {
+    console.error('Error creating flower:', error);
     res.status(400).json({ error: error.message });
   }
 };
 
-
+// ===================== DELETE FLOWER =====================
 const deleteFlower = async (req, res) => {
-    const { id } = req.params;
+  const { id } = req.params;
+  try {
+    const flower = await Flower.findById(id);
+    if (!flower) return res.status(404).json({ error: 'Flower not found' });
 
-    try {
-        // Find the flower in the database
-        const flower = await Flower.findById(id);
-        if (!flower) {
-            return res.status(404).json({ error: 'Flower not found' });
-        }
+    // Delete flower document
+    await Flower.findByIdAndDelete(id);
 
-        //Check if the flower has an image
-        if (flower.Image) {
-            const imagePath = path.join(__dirname, '../', flower.Image);
-
-            //Delete the image file
-            fs.unlink(imagePath, (err) => {
-                if (err) {
-                    console.error('Error deleting image:', err);
-                } else {
-                    console.log('Image deleted:', imagePath);
-                }
-            });
-        }
-
-        //Delete the flower from the database
-        await Flower.findByIdAndDelete(id);
-        res.status(200).json({ message: 'Flower deleted successfully' });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Server error' });
-    }
+    res.status(200).json({ message: 'Flower deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting flower:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
 };
 
-
+// ===================== UPDATE FLOWER =====================
 const updateFlower = async (req, res) => {
-    const { id } = req.params;
-    const { Title, Description, Price, Category } = req.body;
-    let newImagePath = null;
+  const { id } = req.params;
+  const { Title, Description, Price, Category } = req.body;
 
-    try {
-        // Find the existing flower
-        const flower = await Flower.findById(id);
-        if (!flower) {
-            return res.status(404).json({ error: 'Flower not found' });
-        }
+  try {
+    const flower = await Flower.findById(id);
+    if (!flower) return res.status(404).json({ error: 'Flower not found' });
 
-        //If a new image is uploaded, replace the old one
-        if (req.file) {
-            newImagePath = `/uploads/${req.file.filename}`;
+    let newImageUrl = flower.Image;
 
-            //Delete old image if it exists
-            if (flower.Image) {
-                const oldImagePath = path.join(__dirname, '../', flower.Image);
-                fs.unlink(oldImagePath, (err) => {
-                    if (err) {
-                        console.error('Error deleting old image:', err);
-                    } else {
-                        console.log('Old image deleted:', oldImagePath);
-                    }
-                });
-            }
-        }
+    if (req.file) {
+      // Upload new image to Cloudinary
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'flowers',
+      });
 
-        //Update flower details
-        const updatedFlower = await Flower.findByIdAndUpdate(
-            id,
-            {
-                Title: Title || flower.Title,
-                Description: Description || flower.Description,
-                Price: Price || flower.Price,
-                Category: Category || flower.Category,
-                Image: newImagePath || flower.Image
-            },
-            { new: true }
-        );
+      // Delete temporary file
+      fs.unlinkSync(req.file.path);
 
-        res.status(200).json(updatedFlower);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+      // Update image URL
+      newImageUrl = result.secure_url;
     }
+
+    const updatedFlower = await Flower.findByIdAndUpdate(
+      id,
+      {
+        Title: Title || flower.Title,
+        Description: Description || flower.Description,
+        Price: Price || flower.Price,
+        Category: Category || flower.Category,
+        Image: newImageUrl,
+      },
+      { new: true }
+    );
+
+    res.status(200).json(updatedFlower);
+  } catch (error) {
+    console.error('Error updating flower:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
 };
 
-
-
+// ===================== EXPORTS =====================
 module.exports = {
-    getFlowers,
-    getFlower,
-    createFlower,
-    deleteFlower,
-    updateFlower,
-    upload
+  getFlowers,
+  getFlower,
+  createFlower,
+  deleteFlower,
+  updateFlower,
+  upload,
 };
