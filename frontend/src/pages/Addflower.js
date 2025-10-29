@@ -1,118 +1,147 @@
-import React, { useState } from "react";
-import axios from "axios";
+import axios from 'axios';
+import { useState } from 'react';
 import "./Addflower.css";
+import upload from '../assets/upload.jpg';
 
-const AddFlower = () => {
-  const [Name, setName] = useState("");
-  const [Category, setCategory] = useState("");
-  const [Price, setPrice] = useState("");
-  const [Description, setDescription] = useState("");
-  const [Image, setImage] = useState(null);
-  const [uploading, setUploading] = useState(false);
+const Addflower = () => {
+
+  const [image, setImage] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [formData, setFormData] = useState({
+    Title: '',
+    Category: '',
+    Price: '',
+    Description: ''
+  });
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleImageChange = (e) => {
-    setImage(e.target.files[0]);
+    const file = e.target.files && e.target.files[0];
+    if (file) setImage(file);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!Image) {
-      alert("Please upload an image!");
-      return;
-    }
 
-    const formData = new FormData();
-    formData.append("Name", Name);
-    formData.append("Category", Category);
-    formData.append("Price", Price);
-    formData.append("Description", Description);
-    formData.append("Image", Image);
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    const data = new FormData();
+    data.append('Image', image);
+    data.append('Title', formData.Title);
+    data.append('Category', formData.Category);
+    data.append('Price', formData.Price);
+    data.append('Description', formData.Description);
 
     try {
-      setUploading(true);
-      const res = await axios.post("https://flower-website-backend-two.onrender.com/api/flowers", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const response = await axios.post(
+        'https://flower-website-backend-two.onrender.com/api/flowers', 
+        data,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+
+      alert("Flower added successfully!");
+      console.log(response.data);
+
+      setFormData({
+        Title: '',
+        Category: '',
+        Price: '',
+        Description: ''
       });
-      alert("✅ Flower added successfully!");
-      console.log(res.data);
-      setName("");
-      setCategory("");
-      setPrice("");
-      setDescription("");
       setImage(null);
+
     } catch (error) {
-      console.error("❌ Upload error:", error.response?.data || error.message);
-      alert("Error uploading flower: " + (error.response?.data?.error || error.message));
+      console.error("Upload error:", error.response?.data || error.message);
+      alert("Failed to upload flower");
     } finally {
-      setUploading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="datainput">
-      <h2>Add Flower 🌸</h2>
+    <div>
+      <form onSubmit={handleSubmit}>
 
-      {/* Name Input */}
-      <label className="name">Name:</label>
-      <input
-        className="namein"
-        type="text"
-        value={Name}
-        onChange={(e) => setName(e.target.value)}
-        required
-      />
+        <div className="imageinput">
+          <input
+            type="file"
+            id="imageUpload"
+            style={{ display: 'none' }}
+            accept="image/*"
+            onChange={handleImageChange}
+            required
+          />
+          <label htmlFor="imageUpload" className="upload-label">
+            <img
+              src={image ? URL.createObjectURL(image) : upload}
+              alt="Selected"
+              className="upload-icon"
+              style={{ objectFit: 'cover' }}
+            />
+          </label>
+        </div>
 
-      {/* Category Dropdown */}
-      <label className="category">Category:</label>
-      <select
-        className="categoryin"
-        value={Category}
-        onChange={(e) => setCategory(e.target.value)}
-        required
-      >
-        <option value="">-- Select Category --</option>
-        <option value="dry-flowers">dry-flowers</option>
-        <option value="live-plants">live-plants</option>
-        <option value="aroma-candles">aroma-candles</option>
-        <option value="fresheners">fresheners</option>
-        <option value="Fresh-flowers">Fresh-flowers</option>
-      </select>
+        <div className="datainput">
+          <p className="name">Name</p>
+          <input
+            type="text"
+            className="namein"
+            name="Title"
+            onChange={handleChange}
+            value={formData.Title}
+            required
+          />
 
-      {/* Price Input */}
-      <label className="price">Price (₦):</label>
-      <input
-        className="pricein"
-        type="number"
-        value={Price}
-        onChange={(e) => setPrice(e.target.value)}
-        required
-      />
+          <label className="category">Category:</label>
+          <select
+            className="categoryin"
+            name="Category"
+            value={formData.Category}
+            onChange={handleChange}
+            required
+          >
+            <option value="">-- Select Category --</option>
+            <option value="dry-flowers">dry-flowers</option>
+            <option value="live-plants">live-plants</option>
+            <option value="aroma-candles">aroma-candles</option>
+            <option value="fresheners">fresheners</option>
+            <option value="Fresh-flowers">Fresh-flowers</option>
+          </select>
 
-      {/* Description Input */}
-      <label className="description">Description:</label>
-      <textarea
-        className="descriptionin"
-        value={Description}
-        onChange={(e) => setDescription(e.target.value)}
-        required
-      />
+          <p className="price">Price</p>
+          <input
+            type="number"
+            className="pricein"
+            name="Price"
+            value={formData.Price}
+            onChange={handleChange}
+            required
+          />
 
-      {/* Image Input */}
-      <label>Image:</label>
-      <input
-        className="upload-icon"
-        type="file"
-        accept="image/*"
-        onChange={handleImageChange}
-        required
-      />
+          <p className="description">Description</p>
+          <input
+            type="text"
+            className="descriptionin"
+            name="Description"
+            value={formData.Description}
+            onChange={handleChange}
+            required
+          />
+        </div>
 
-      {/* Submit Button */}
-      <button type="submit" className="submit" disabled={uploading}>
-        {uploading ? "Uploading..." : "Add Flower"}
-      </button>
-    </form>
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Uploading..." : "Submit"}
+        </button>
+
+      </form>
+    </div>
   );
 };
 
-export default AddFlower;
+export default Addflower;
