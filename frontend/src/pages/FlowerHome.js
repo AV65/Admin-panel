@@ -42,12 +42,17 @@ const filteredFlowers = flowers;
       {filteredFlowers.map((flower, index) => (
         <div key={index} className='fir' >
           <div className='image-con'>
-            <img className='image'
-              src={`https://flower-website-backend-two.onrender.com${flower.Image}`}
+            <img
+  className='image'
+  src={
+    flower.Image?.startsWith("http")
+      ? flower.Image
+      : `https://flower-website-backend-two.onrender.com${flower.Image}`
+  }
+  alt={flower.Title}
+  style={{ width: '150px', height: '150px', objectFit: 'cover', marginRight: '15px' }}
+/>
 
-              alt={flower.Title}
-              style={{ width: '150px', height: '150px', objectFit: 'cover', marginRight: '15px' }}
-            />
           </div>
           <div className='texts'>
             <p className='nameclass'> <span className='Naming'>Name:</span> {flower.Title}</p>
